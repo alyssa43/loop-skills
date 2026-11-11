@@ -1,0 +1,4 @@
+interface:
+  display_name: "Experiment Loop"
+  short_description: "Iterate one change at a time on a Kitaru cohort until green twice"
+  default_prompt: "Use $experiment-loop to run a baseline and then one-change-per-iteration experiments on my Kitaru cohort until a configuration passes every case twice in a row."

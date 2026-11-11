@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kitaru Loop"
+  short_description: "Iterate one change per round with pass^k consistency criteria"
+  default_prompt: "Use $kitaru-loop to run a baseline consistency audit and then one-change-per-round experiments on my Kitaru cohort until a round meets the gate and confirms on fresh trials."

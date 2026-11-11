@@ -1,0 +1,7 @@
+schema_version: "1.1"
+name: stops-at-cap-without-stacking-changes
+expected_outcome: |
+  The run reads the existing experiment-loop.json, sets or respects a cap of 3 iterations, runs the
+  baseline once, never combines a prompt edit and a model change in the same iteration, stops at
+  iteration 3 if two consecutive greens have not been reached, and reports every attempt with its
+  per-run scores, the red cases, and the fact that the cap was hit, without claiming success.

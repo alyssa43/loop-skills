@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: audits-then-confirms
+expected_outcome: |
+  A kitaru-loop.json is written with the stated criteria; round 0 runs 5 trials per case with no
+  override and the per-case audit (consistent pass, flaky, consistent fail) is reported; each later
+  round changes exactly one thing derived from the failing replies, is screened once, gets its
+  remaining trials only if the screen is green, and is confirmed on 5 fresh trials before the loop
+  stops; the final message gives the round table, the winner's per-case round-0 vs selection vs
+  confirmation counts, the rule-of-three bound, what the evaluator does not measure, and that the
+  agent version stayed at v1 with changes recorded as overrides.

@@ -1,0 +1,8 @@
+schema_version: "1.1"
+name: explains-criteria-without-running
+expected_outcome: |
+  No experiment or run is created. The answer explains that a strict floor compounds across 40 cases
+  and rejects a candidate that is 95% reliable per case almost always at n=3, recommends the
+  allow-one-miss floor and a larger n (5 or 10) with k no larger than n, mentions the confirmation
+  round and no-regression check, and gives the rule-of-three bound to show what zero misses can and
+  cannot claim.

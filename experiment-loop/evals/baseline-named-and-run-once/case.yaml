@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: baseline-named-and-run-once
+expected_outcome: |
+  The run creates an experiment named support-desk-demo-baseline with no override and runs it exactly
+  once; any red result leads to a new experiment named support-desk-demo-iteration-1 that differs by a
+  single prompt-file or model change derived from the failing replies; a green run is repeated once with
+  the identical configuration; the loop stops after two consecutive all-green runs or at iteration 6; the
+  final message leads with the outcome, shows the version table, keeps the agent version fixed at v1,
+  and names what the evaluator does not measure.
