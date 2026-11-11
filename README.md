@@ -14,7 +14,7 @@ Both skills apply each change as an experiment override on the same registered a
 Claude Code loads skills from `~/.claude/skills/` (for all your projects) or from `<project>/.claude/skills/` (for one project). Clone this repo and symlink the skills so a `git pull` keeps them up to date:
 
 ```bash
-git clone <this-repo-url> ~/loop-skills
+git clone https://github.com/alyssa43/loop-skills.git ~/loop-skills
 ```
 
 ```bash
