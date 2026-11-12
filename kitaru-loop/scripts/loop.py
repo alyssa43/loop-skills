@@ -152,6 +152,14 @@ def evidence_root(cfg: dict) -> pathlib.Path:
     return p
 
 
+def settings_line(cfg: dict) -> str:
+    """One line for round 0's description: the rules a reader needs to re-apply the gate."""
+    gates = [ref_parts(e["ref"])[0] for e in cfg["evaluators"] if e["kind"] == "binary" and e["role"] == "gate"]
+    settings = {"name": cfg["name"], "criteria": cfg["criteria"], "allowed_changes": cfg["allowed_changes"],
+                "allowed_models": cfg.get("allowed_models", []), "gate_evaluators": gates}
+    return "Loop settings: " + json.dumps(settings, separators=(",", ":"))
+
+
 def experiment_name(cfg: dict, round_no: int) -> str:
     return f"{cfg['experiment_prefix']}-round-{round_no}"
 
@@ -493,7 +501,12 @@ def cmd_round(a):
         args = ["experiment", "create", name, "--agent", spec1["agent_id"], *evaluator_tokens(cfg), "--tool-policy", json.dumps(cfg["tool_policy"]), "--idempotency-key", name]
         if override: args += ["--override", json.dumps(override)]
         desc = (f"Round {r}: {a.change}" if r > 0 else f"Round 0: unchanged baseline, {n} trials per case") + (f" Hypothesis: {cfg.get('hypothesis')}" if cfg.get("hypothesis") else "")
-        args += ["--description", desc[:1000]]
+        desc = desc[:1000]
+        if r == 0:
+            # The loop's rules travel with round 0 so a dashboard can apply the same gate
+            # without this machine's kitaru-loop.json. Kept on its own last line.
+            desc = desc[:1000 - len(settings_line(cfg)) - 1] + "\n" + settings_line(cfg)
+        args += ["--description", desc]
         exp = kit(cfg, *args)["item"]; created = True
     exp = kit(cfg, "experiment", "get", exp["id"])["item"]
     (d / "experiment.json").write_text(json.dumps(exp, indent=1))

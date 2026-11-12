@@ -1,0 +1,17 @@
+---
+name: evalve-loop
+description: Run the Evalve MVP Loop from a New Loop prompt. Replay a fixed Kitaru cohort on the unchanged agent, then test one prompt or model override per lap until the configured green streak, attempt cap, or replay budget stops the loop.
+---
+
+# Evalve Loop
+
+Read [the Evalve handoff contract](references/handoff.md) for the form fields, runner config, and results. A green replay means every session in the cohort passes every selected binary evaluator.
+
+1. Resolve the exact cohort and evaluator versions from the prompt. Look up evaluator parameters, connections, and tool policy in the project or a matching saved replay configuration. If a required setting is missing or ambiguous, ask for it. Write `evalve-loop.json` in the agent project and run `python3 <skill-dir>/scripts/loop.py preflight`. Use the cohort's shared recorded agent version when it is runnable. If the cohort has mixed, missing, or unavailable versions, ask which exact version of its agent to run and set `agent_version`. Check the replay policy and cost estimate before starting.
+2. Use a worker that can run the selected agent version and evaluators. When the project needs a local worker, use its Kitaru CLI and environment with `kitaru worker start --claim agent=<agent-version-id> --claim evaluator`. Keep track of any worker you start so you can stop it after the loop.
+3. Run `loop.py next` and follow its action. For `start_baseline` or `replay`, run `loop.py start`. Lap 0 completes the requested number of fully scored replays, including any reds. To win, it must earn the requested consecutive greens. If an incomplete run interrupts a possible winning streak, continue until the streak is earned, the baseline audit is complete with a red, or a limit stops the loop.
+4. For `start_candidate`, read the failed cases and evaluator explanations in the preceding lap's evidence. Choose an enabled change that addresses the failure. Write a new prompt file for a prompt change, or select one model ID from the allow-list. Run `loop.py start --prompt-file FILE --change TEXT` or `loop.py start --model MODEL --change TEXT`. Each override applies to the pinned registered agent. A candidate ends on its first fully scored red. Keep cohort-specific answers and evaluator internals out of the system prompt.
+5. For each submitted run, use `loop.py watch RUN_ID` until it settles and `loop.py collect RUN_ID` to save evidence. If `next` says `retry`, diagnose the worker error or missing verdict and use plain `start` to repeat the same lap. An incomplete run breaks the streak and uses one attempt. If submission was interrupted and `next` says `resume_start`, use plain `start` to recover the same submission. Use `--estimate-usd` when the runner has no estimate for the chosen configuration. Ask for the estimate if the project cannot supply one.
+6. When `next`, `start`, or `collect` reports a stop, run `loop.py report`. Stop any worker you started. Give the outcome, lap counts, and report path. A winning prompt or model is a proposed change for the user to review.
+
+All runner commands after preflight use the saved loop state. Run them from the agent project or pass `--config PATH` before the subcommand.

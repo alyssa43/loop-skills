@@ -1,13 +1,14 @@
 # loop-skills
 
-Two Claude Code skills for iterating an agent against a fixed Kitaru cohort, one change at a time, until it is reliably green.
+Skills for iterating an agent against a fixed Kitaru cohort, one change at a time.
 
 | Skill | Use it when | Stop rule |
 | --- | --- | --- |
+| [`evalve-loop`](evalve-loop/SKILL.md) | You have an Evalve New Loop prompt. | A lap earns the requested consecutive full-cohort greens, or the total attempt or replay budget cap is reached. See the [Evalve handoff](evalve-loop/references/handoff.md). |
 | [`kitaru-loop`](kitaru-loop/SKILL.md) | **Default for new loops.** You want a criterion you can defend: several trials per round and a consistency check. | Configurable: n trials per round, pass^k, a per-case floor, no regression against round 0, confirmation on fresh trials, a round cap and a budget. See [criteria.md](kitaru-loop/references/criteria.md). |
 | [`experiment-loop`](experiment-loop/SKILL.md) | You want the simple recipe: one baseline run, then one change per iteration. | One configuration passes every case in two consecutive runs, or the iteration cap is hit. |
 
-Both skills apply each change as an experiment override on the same registered agent version, so the Kitaru UI keeps showing `v1` and the change appears in the Overrides column.
+Each skill applies changes as experiment overrides on a pinned registered agent version. Kitaru shows the change in the Overrides column.
 
 ## Install
 
@@ -18,7 +19,7 @@ git clone https://github.com/alyssa43/loop-skills.git ~/loop-skills
 ```
 
 ```bash
-mkdir -p ~/.claude/skills && ln -s ~/loop-skills/kitaru-loop ~/loop-skills/experiment-loop ~/.claude/skills/
+mkdir -p ~/.claude/skills && ln -s ~/loop-skills/evalve-loop ~/loop-skills/kitaru-loop ~/loop-skills/experiment-loop ~/.claude/skills/
 ```
 
 Then ask Claude Code to run a loop, or call one by name, such as `/kitaru-loop`.
