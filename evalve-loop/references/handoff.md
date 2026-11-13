@@ -8,14 +8,14 @@
 | Cohort | Exact cohort version UUID. The cohort identifies the agent. |
 | Evaluators | One or more exact binary evaluator references in `name@version` form. |
 | Allowed changes | At least one of `system_prompt` and `model`. |
-| Allowed models | Selected model IDs when model changes are enabled. The form's model picker supplies IDs. Provider credentials stay in the project environment. |
+| Allowed models | The coding agent resolves this list from models the replay worker can use when model changes are enabled. |
 | Replays to succeed | A positive integer. This is the number of consecutive full-cohort greens required and the minimum number of fully scored baseline replays. |
 | Maximum attempts | A positive integer at least as large as replays to succeed. Counts all submitted full-cohort runs across the baseline, candidates, and retries. |
 | Replay budget | A positive USD amount. |
 
 ## Generated prompt
 
-Interpolate the actual form selections and pluralize “replay” as appropriate. The cohort size in the prose comes from the selected cohort version. Include the model list when model changes are enabled.
+Interpolate the actual form selections and pluralize “replay” as appropriate. The cohort size in the prose comes from the selected cohort version. A hosted handoff includes the public release URL and SHA-256 for every release file, and the exact Kitaru server URL. Save the verified files in the loop's evidence directory and keep them with the config for a resume.
 
 ```text
 Use the evalve-loop skill in this project to run “{loopName}”.
@@ -31,7 +31,7 @@ and ends on its first red. Diagnose incomplete replays and retry that lap.
 Cohort version  {cohortLabel} ({cohortVersionId})
 Evaluators  {exactEvaluatorReferences}
 Allowed changes  {enabledChanges}
-Allowed models  {selectedModelIds}
+Kitaru server  {serverUrl}
 Maximum replay attempts  {maxAttempts}, including baseline and retries
 Replay budget  ${budgetUsd} USD
 
@@ -44,12 +44,13 @@ results, stopping reason, and winning change if there is one.
 
 ## Runner config
 
-Save the resolved settings as `evalve-loop.json` in the agent project. No prior experiment or run ID is required.
+Save the resolved settings as `evalve-loop.json`. The dashboard handoff puts it in `sessions/evalve-loop/<slug>/` and calls `loop.py --project-root . --config <config-path>` from the project root. The default config path is `evalve-loop.json` at the project root.
 
 ```json
 {
   "name": "Fix refund escalations",
-  "cohort_version_id": "01a1c71c-abff-7454-8f31-2808a19b9f10",
+  "server_url": "https://kitaru.example.com",
+  "cohort_version_id": "00000000-0000-4000-8000-000000000001",
   "evaluators": [
     {"ref": "refund_policy@3", "params": {"limit": 200}},
     {"ref": "address_check@2"}
@@ -70,6 +71,7 @@ Save the resolved settings as `evalve-loop.json` in the agent project. No prior 
 Use the project's actual replay tool policy. Optional fields include:
 
 - `agent_version` selects an exact `name@version` or `agent-id@version` of the cohort's agent when the cohort cannot supply a single runnable recorded version.
+- `server_url` pins the Kitaru endpoint for every runner command. Existing configs can use the CLI's selected server.
 - Each evaluator accepts `params` and a `connection_id` if its project configuration specifies one.
 - `baseline_prompt_file` is a project-relative path to the inherited prompt. It lets the report show a prompt diff. `baseline_model` can supply the inherited model ID when it lives outside the agent version's `OPENAI_MODEL` setting. Resolve it before launching a model candidate. If needed after preflight, pass `start --baseline-model MODEL` with the candidate.
 - `baseline_estimate_usd` supplies the estimated agent replay cost of one full-cohort run. Otherwise preflight uses the sum of recorded costs when all members have costs from the selected version. A new model needs its own estimate with `start --estimate-usd USD`.

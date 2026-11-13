@@ -15,6 +15,7 @@ import tempfile
 import uuid
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from urllib.parse import urlsplit
 
 TERMINAL_STATUSES = {"completed", "failed", "canceled"}
 SETTINGS_PREFIX = "Evalve loop: "
@@ -63,7 +64,7 @@ def version_ref(ref: str) -> tuple[str, int]:
     return name, int(version)
 
 
-def load_config(path: Path) -> dict:
+def load_config(path: Path, project_root: Path | None = None) -> dict:
     cfg = read_json(path)
     for key in ("name", "cohort_version_id", "evaluators", "tool_policy", "allowed_changes",
                 "required_consecutive_greens", "max_attempts", "budget_usd"):
@@ -72,6 +73,21 @@ def load_config(path: Path) -> dict:
     cfg.setdefault("kitaru", "kitaru")
     cfg.setdefault("allowed_models", [])
     cfg.setdefault("evidence_dir", "sessions/evalve-loop")
+    if cfg.get("server_url") is not None:
+        server = cfg["server_url"]
+        if not isinstance(server, str) or any(ch.isspace() for ch in server):
+            raise SystemExit("server_url must be the Kitaru server's HTTP(S) URL.")
+        try:
+            target = urlsplit(server)
+            valid = (
+                target.scheme in ("http", "https") and target.hostname
+                and target.username is None and not (target.query or target.fragment)
+            )
+        except ValueError:
+            valid = False
+        if not valid:
+            raise SystemExit("server_url must be the Kitaru server's HTTP(S) URL without credentials, query, or fragment.")
+        cfg["server_url"] = server.rstrip("/")
     if not isinstance(cfg["name"], str) or not (slug := re.sub(r"[^a-z0-9]+", "-", cfg["name"].lower()).strip("-")):
         raise SystemExit("Give the loop a name containing letters or numbers.")
     try:
@@ -92,7 +108,7 @@ def load_config(path: Path) -> dict:
     if not isinstance(models, list) or any(not isinstance(x, str) or not x.strip() for x in models):
         raise SystemExit("allowed_models must contain model IDs.")
     if "model" in changes and not models:
-        raise SystemExit("Supply the model IDs selected in the form before allowing model changes.")
+        raise SystemExit("Resolve the models available to the replay worker before allowing model changes.")
     if cfg.get("agent_version") is not None:
         version_ref(cfg["agent_version"])
     if cfg.get("baseline_model") is not None and (
@@ -121,7 +137,9 @@ def load_config(path: Path) -> dict:
     if cfg.get("baseline_estimate_usd") is not None:
         cfg["baseline_estimate_usd"] = str(dollars(cfg["baseline_estimate_usd"]))
     cfg["_hash"] = digest(cfg)
-    cfg["_project"] = path.resolve().parent
+    cfg["_project"] = project_root.resolve() if project_root is not None else path.resolve().parent
+    if not cfg["_project"].is_dir():
+        raise SystemExit("--project-root must point to the agent project directory.")
     cfg["_dir"] = cfg["_project"] / cfg["evidence_dir"] / slug
     cfg["_slug"] = slug
     return cfg
@@ -130,9 +148,10 @@ def load_config(path: Path) -> dict:
 def kitaru(cfg: dict, *args: str, check: bool = True) -> dict:
     env = dict(os.environ, KITARU_NON_INTERACTIVE="1")
     env.setdefault("KITARU_ACTIVE_SKILL", "evalve-loop")
+    target = ["--server", cfg["server_url"]] if cfg.get("server_url") else []
     try:
         proc = subprocess.run(
-            [cfg["kitaru"], *args, "-o", "json", "--no-browser"],
+            [cfg["kitaru"], *target, *args, "-o", "json", "--no-browser"],
             cwd=cfg["_project"], env=env, capture_output=True, text=True,
         )
     except OSError as exc:
@@ -226,7 +245,10 @@ def preflight(cfg: dict, _args) -> dict:
         return state["preflight"]
     status = item(cfg, "status")
     if status.get("authentication") != "authenticated" or not status.get("server_url"):
-        raise SystemExit("Log in to the selected Kitaru server before preflight.")
+        server = cfg.get("server_url", "the selected Kitaru server")
+        raise SystemExit(f"Log in to {server} before preflight.")
+    if cfg.get("server_url") and status["server_url"].rstrip("/") != cfg["server_url"]:
+        raise SystemExit("Kitaru reported a different server from the Evalve handoff.")
     cohort_version = item(cfg, "cohort", "version", "get", cfg["cohort_version_id"])
     cohort = item(cfg, "cohort", "get", cohort_version["cohort_id"])
     agent_id = cohort["agent_id"]
@@ -348,6 +370,8 @@ def metadata(prefix: str, description: str | None) -> dict:
 def description(cfg: dict, state: dict, lap: dict) -> str:
     number = lap["number"]
     change = " ".join(lap["change"].splitlines())
+    if cfg.get("hypothesis"):
+        change += " Hypothesis: " + " ".join(cfg["hypothesis"].splitlines())
     lines = [f"Round {number}: {change}"]
     settings = {"schema_version": 1, "loop_id": state["loop_id"], "lap": number}
     if number == 0:
@@ -689,6 +713,7 @@ def report(cfg: dict, _args) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path("evalve-loop.json"))
+    parser.add_argument("--project-root", type=Path, help="Agent project directory when the config lives elsewhere.")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("preflight").set_defaults(handler=preflight)
     commands.add_parser("next").set_defaults(handler=lambda cfg, _: decide(cfg, load_state(cfg)))
@@ -709,7 +734,7 @@ def main() -> None:
     collector.set_defaults(handler=collect)
     commands.add_parser("report").set_defaults(handler=report)
     args = parser.parse_args()
-    cfg = load_config(args.config)
+    cfg = load_config(args.config, args.project_root)
     if args.command == "watch":
         result = args.handler(cfg, args)
     else:
